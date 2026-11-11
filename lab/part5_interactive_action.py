@@ -57,24 +57,58 @@ async def interactive_action(robot: Robot, action: str) -> Result:
                            job refuses (the later check: robot.state_now)
     Test:                python3 lab/test.py todo9
     """
-    # ========== TODO 9: YOUR CODE HERE ==========
-    # NOW:
-    # 1. found = robot.action_ids().get(action). If None: fail, listing list(robot.action_ids()).
-    # 2. trick, clip = found
-    # 3. If robot.state_after_queue is not trick: fail, and say which trick to play first
-    #    (e.g. f"... play it first (play_trick {trick.name})").
-    # THE JOB:
-    # 4. async def job() -> Result:
-    #        a. If robot.state_now is not trick: fail, saying which trick must run first.
-    #        b. The exit clip (clip == trick.exit_clip) leaves the trick:
-    #           res = await robot.switch_to(LOCOMOTION_CONTROLLER) (it plays the exit clip first),
-    #           then report how that went.
-    #        c. Any other clip: return await robot.play_clip(trick, clip)
-    # QUEUE IT:
-    # 5. return await robot.queue(f"{trick.name} {clip}", job, trick.clip_time_estimate(clip),
-    #                              then=...)   LOCOMOTION after the exit clip, else trick.
-    return not_written("TODO 9", "interactive_action in lab/part5_interactive_action.py")
-    # ====================================
+    # ---------- NOW: checks that run the moment Gemini asks ----------
+
+    # 1. Is this a real action? If not, list the real ones.
+    actions = robot.action_ids()
+    found = actions.get(action)
+    if found is None:
+        return Result(False, f"unknown interactive action {action}; available: {list(actions)}")
+
+    # 2. The action belongs to one trick, and plays one clip of it.
+    trick, clip = found
+
+    # 3. Will Pupper be in that trick when this job's turn comes?
+    #    state_after_queue, not state_now: in "sit, then shake" the sit is
+    #    still waiting in the queue when the shake is asked for.
+    if robot.state_after_queue is not trick:
+        return Result(
+            False,
+            f"{action} only works while {trick.name} is running; play it first (play_trick {trick.name})",
+        )
+
+    # The exit clip is special: it leaves the trick.
+    is_exit = clip == trick.exit_clip
+
+    # ---------- LATER: the job, run when the queue gets to it ----------
+    async def job() -> Result:
+        # a. Check again, about right now: Pupper may have fallen or been
+        #    stopped while this job waited in line.
+        if robot.state_now is not trick:
+            return Result(
+                False,
+                f"{action} was skipped: {trick.name} is no longer running; play it first (play_trick {trick.name})",
+            )
+
+        # b. The exit clip: hand the legs back to the locomotion policy.
+        #    switch_to plays the exit clip on the way out.
+        if is_exit:
+            res = await robot.switch_to(LOCOMOTION_CONTROLLER)
+            if not res.ok:
+                return Result(False, f"could not leave {trick.name}: {res.message}")
+            return Result(True, f"played {clip}; left {trick.name}, back in locomotion mode")
+
+        # c. Any other clip: play it. Pupper stays in the trick.
+        return await robot.play_clip(trick, clip)
+
+    # ---------- QUEUE IT: this reply is what Gemini hears now ----------
+    # then= is the state Pupper will be in once the job is done.
+    if is_exit:
+        then = LOCOMOTION
+    else:
+        then = trick
+    seconds = trick.clip_time_estimate(clip)
+    return await robot.queue(f"{trick.name} {clip}", job, seconds, then=then)
 
 
 # ============================================================ what Gemini reads
