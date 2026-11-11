@@ -9,7 +9,7 @@ The person follower itself is provided (robot.set_following). The rule is yours:
 
 from __future__ import annotations
 
-from robot_api import Result, Robot, not_written  # noqa: F401
+from robot_api import Result, Robot, Trick, not_written  # noqa: F401
 from tool_registry import Param, tool
 
 
@@ -74,8 +74,22 @@ async def prepare_to_move(robot: Robot) -> str:
     "Use it for 'follow me', 'come here' and 'stay with me', and with enabled=false for 'stop following'. "
     "Follow mode stays on while you talk, answer questions, or look at the camera "
     "('what do you see?'). Any motion tool (move, turn, arc, play_trick, stand_up, lie_down) "
-    "ends follow mode, and the reply says so. Starting follow mode clears any queued moves.",
+    "ends follow mode, and the reply says so. Starting follow mode clears any queued moves. "
+    "Pupper cannot follow while it is in a trick that walks in its own stance (the spider): "
+    "the tool refuses, and Pupper has to stand up first.",
     enabled=Param("boolean", "true to start following the nearest person, false to stop following."),
 )
 async def follow_tool(robot: Robot, enabled: bool) -> Result:
+    # A trick that walks in its own stance (the spider) cannot follow a person.
+    # Follow mode needs the normal walk, so starting it would pull Pupper out of
+    # the trick without anyone asking for that.
+    # state_after_queue, not state_now: in "be a spider, then follow me" the
+    # spider is still waiting in the queue when Gemini calls follow.
+    state = robot.state_after_queue
+    if enabled and isinstance(state, Trick) and state.walks:
+        return Result(
+            False,
+            f"can't follow while in the trick {state.name}: following needs the normal walk, and "
+            f"{state.name} is too slow to keep up with a person. Stand up first (stand_up), then follow.",
+        )
     return await robot.set_following(enabled)

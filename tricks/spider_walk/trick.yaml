@@ -1,0 +1,21 @@
+# spider_walk: fetched with get_trick.py (clips: k5dnvk7b/model_4198, walk: w01qrjjs/model_2150).
+# The description is what Gemini reads when deciding whether to play this trick.
+description: From standing, gets down low into a spider stance, legs spread wide and belly just off the floor, and stays there. Use it when someone asks Pupper to be a spider. To leave it, ask Pupper to stand up.
+type: policy
+policy: policy.json
+start_pose: standing
+end_pose: spider
+max_body_angle_deg: 60   # the tilt e-stop while the trick plays
+# The clips Gemini may ask for while Pupper is a spider.
+actions:
+  spider_up: Only while Pupper is in the spider stance. Stands back up from the spider stance and ends the trick.
+# The clip that returns to standing. It plays by itself before any other motion.
+exit_clip: spider_up
+walk:                      # it walks in its stance: move, turn and arc drive this policy
+  policy: walk_policy.json
+  speed: 0.1               # default m/s for move and arc
+  max_forward: 0.12        # m/s; exact model_2150 measured about 0.127 forward
+  max_sideways: 0.06       # m/s; exact model_2150 measured about 0.061 sideways
+  turn: 28                 # deg/s; exact model_2150 measured about 29 deg/s
+  run: false
+  note: It creeps slowly and stays low, and it cannot follow a person while it is a spider.
