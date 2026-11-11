@@ -128,10 +128,21 @@ async def interactive_action(robot: Robot, action: str) -> Result:
 # ========== TODO 10: YOUR CODE HERE ==========
 @tool(
     "interactive_action",
-    "TODO 10: describe interactive_action for Gemini. Actions:\n{actions}",
-    action=Param("string", "TODO 10", enum=ACTION_IDS),
+    "Play one action of an interactive trick, such as shaking a paw while Pupper sits. "
+    "An action only works while Pupper is in the trick it belongs to: call play_trick "
+    "with that trick first, then ask for the action. "
+    "After an action, Pupper stays in the trick, ready for another action. "
+    "The trick ends when you ask for its exit action (for example stand_up), or when you "
+    "call any other motion tool: Pupper then leaves the trick by itself first, so you do "
+    "not need to call the exit action before walking. Once the trick has ended, play it "
+    "again before asking for more actions. "
+    "Actions:\n{actions}",
+    action=Param(
+        "string",
+        "The exact action name from the list. Each action says which trick it belongs to.",
+        enum=ACTION_IDS,
+    ),
 )
 async def interactive_action_tool(robot: Robot, action: str) -> Result:
-    # One line: call interactive_action(robot, action) (your TODO 9), await it, and return it.
-    return not_written("TODO 10", "interactive_action in lab/part5_interactive_action.py")
+    return await interactive_action(robot, action)
 # =====================================
